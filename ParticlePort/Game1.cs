@@ -11,6 +11,8 @@ public class Game1 : Game
 	private GraphicsDeviceManager _graphics;
 	private SpriteBatch _spriteBatch;
 
+	public static int Width { get => GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width; }
+	public static int Height { get => GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height; }
 	List<Particle> particles;
 	Texture2D sphereTex;
 	float inverseTexSize;
@@ -27,8 +29,8 @@ public class Game1 : Game
 
 		Random rng = new();
 		// Placeholder, forgot how to do properly. Must change later!
-		int width = 1600;
-		int height = 900;
+		int width = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+		int height = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
 		particles = [];
 		//for (int i = 0; i < 15_000; i++)
 		//    particles.Add(new Particle(i, 1f, 0f, 8f, 100f, new Vector2(rng.Next(0, width), rng.Next(0, height)), new Vector2(rng.NextSingle(), rng.NextSingle()), Color.White));
@@ -48,7 +50,10 @@ public class Game1 : Game
 		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
 
+		// check if form resizes, move particles if true
 		// TODO: Add your update logic here
+
+		Particle.UpdateCollection(0.00f, particles, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height);
 
 		// Get width, height with GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width/Height;
 
