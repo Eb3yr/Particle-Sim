@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 
-namespace ParticleDraw
+namespace ParticlePort
 {
 	public class Particle   // While I'm very tempted to use a struct, this makes my life easier with operating upon the particles in Physics.cs
 	{
@@ -15,6 +15,24 @@ namespace ParticleDraw
 		public Vector2 Pos { get; set; }
 		public Vector2 Vel { get; set; }
 		public Color Color { get; set; }
+
+		public static readonly Comparison<Particle> PosComparer = (x, y) =>
+		{
+			Vector2 delta = y.Pos - x.Pos;
+			if (delta.X < 0f)
+				return 1; // x > y
+
+			if (delta.X == 0f)
+			{
+				if (delta.Y < 0f)
+					return 1;
+				else if (delta.Y == 0f)
+					return 0;
+				return -1;
+			}
+			return -1;
+
+		};
 
 		public Particle(int Num, float Mass, float Charge, float Radius, float HalfLife, Vector2 Position, Vector2 Velocity, Color Color)
 		{
@@ -38,13 +56,18 @@ namespace ParticleDraw
 			throw new NotImplementedException();
 		}
 
-		public static void UpdateCollection(float deltaTime, IList<Particle> particles, int width, int height)   // Arrays and Lists both implement IList
+		public static void UpdateCollection(float deltaTime, List<Particle> particles, int width, int height)
 		{
+			// collision -> apply graviational forces -> move
+			// Order doesn't really matter much, since this'll be repeating every frame. Might matter a bit, IDK.
+			particles.Sort(PosComparer);	// Preferable to IEnumerable.SortBy because it sorts on the existing data structure. 
+			// Collision
 			for (int i = 0; i < particles.Count; i++)
 			{
 				Particle left = particles[i];
 
 				// Makes use of the sorted nature of the collection
+
 				for (int j = i + 1; j < particles.Count; j++)
 				{
 					Particle right = particles[j];
@@ -54,17 +77,41 @@ namespace ParticleDraw
 
 					if (DoesIntersect(left, right))
 						Collide(left, right);
+				}
 
-					// Bounce off window walls
-					if (left.Pos.X <= left.Rad || left.Pos.X >= width - left.Rad)
+				// Bounce off window walls
+				// A bit off. Is this including the top bar?
+
+				// IMPORTANT: my coordinates draw from top-left, not from centre!
+				if (left.Pos.X < left.Rad)
+				{
+					if (left.Vel.X < 0)
 						left.Vel = new Vector2(-left.Vel.X, left.Vel.Y);
-					if (left.Pos.Y <= left.Rad || left.Pos.Y >= height - left.Rad)
+				}
+				else if (left.Pos.X > width - left.Rad)
+					if (left.Vel.X > 0)
+						left.Vel = new Vector2(-left.Vel.X, left.Vel.Y);
+
+				if (left.Pos.Y < left.Rad)
+				{
+					if (left.Pos.Y < 0)
 						left.Vel = new Vector2(left.Vel.X, -left.Vel.Y);
 				}
+				else if (left.Pos.Y > height - left.Rad)
+					if (left.Pos.Y > 0)
+						left.Vel = new Vector2(left.Vel.X, -left.Vel.Y);
 			}
 
+			// Gravity and other external forces
+			for (int i = 0; i < particles.Count; i++)
+			{
+
+			}
+
+			// Move with velocity * deltaTime
 			foreach (Particle p in particles)
 				p.Update(deltaTime);
+
 		}
 
 		#region Physics
