@@ -1,20 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 
 namespace ParticlePort
 {
 	public class Particle   // While I'm very tempted to use a struct, this makes my life easier with operating upon the particles in Physics.cs
 	{
-		// Consider making them all fields for the sake of performance - not having to deal with getters cloning structs instead of passing a reference
-		public int Num { get; set; }    // What purpose does this serve? An ID?
-		public float Mass { get; set; }
-		public float Charge { get; set; }
-		public float Rad { get; set; }
-		public float HalfLife { get; set; }
-		public Vector2 Pos { get; set; }
-		public Vector2 Vel { get; set; }
-		public Color Color { get; set; }
+		// Ordinarily these would be properties, but switching to fields DOUBLED fps
+		public int Num;    // What purpose does this serve? Atomic number?
+		public float Mass;
+		public float Charge;
+		public float Rad;
+		public float HalfLife;
+		public Vector2 Pos;
+		public Vector2 Vel;
+		public Color Color;
 
 		public static readonly Comparison<Particle> PosComparer = (x, y) =>
 		{
@@ -33,6 +34,7 @@ namespace ParticlePort
 			return -1;
 
 		};
+		// Could have an alternate comparer that compares x and y distance as a sum, and tie that in to a slightly different optimisation for when to break. IDK how well that would work though.
 
 		public Particle(int Num, float Mass, float Charge, float Radius, float HalfLife, Vector2 Position, Vector2 Velocity, Color Color)
 		{
@@ -60,17 +62,21 @@ namespace ParticlePort
 		{
 			// collision -> apply graviational forces -> move
 			// Order doesn't really matter much, since this'll be repeating every frame. Might matter a bit, IDK.
-			particles.Sort(PosComparer);	// Preferable to IEnumerable.SortBy because it sorts on the existing data structure. 
+			particles.Sort(PosComparer);    // Takes about 8-10% of the total method time
+
 			// Collision
+			Particle left, right;
 			for (int i = 0; i < particles.Count; i++)
 			{
-				Particle left = particles[i];
+				left = particles[i];
 
 				// Makes use of the sorted nature of the collection
 
 				for (int j = i + 1; j < particles.Count; j++)
 				{
-					Particle right = particles[j];
+					right = particles[j];
+
+					
 
 					if (right.Pos.X - right.Rad > left.Pos.X + left.Rad)
 						break;  // Not continue; due to sorting. Anything further than this point will also meet this condition
@@ -86,20 +92,20 @@ namespace ParticlePort
 				if (left.Pos.X < left.Rad)
 				{
 					if (left.Vel.X < 0)
-						left.Vel = new Vector2(-left.Vel.X, left.Vel.Y);
+						left.Vel.X *= -1f;
 				}
 				else if (left.Pos.X > width - left.Rad)
 					if (left.Vel.X > 0)
-						left.Vel = new Vector2(-left.Vel.X, left.Vel.Y);
+						left.Vel.X *= -1f;
 
 				if (left.Pos.Y < left.Rad)
 				{
 					if (left.Pos.Y < 0)
-						left.Vel = new Vector2(left.Vel.X, -left.Vel.Y);
+						left.Vel.Y *= -1f;
 				}
 				else if (left.Pos.Y > height - left.Rad)
 					if (left.Pos.Y > 0)
-						left.Vel = new Vector2(left.Vel.X, -left.Vel.Y);
+						left.Vel.Y *= -1f;
 			}
 
 			// Gravity and other external forces
@@ -111,29 +117,28 @@ namespace ParticlePort
 			// Move with velocity * deltaTime
 			foreach (Particle p in particles)
 				p.Update(deltaTime);
-
 		}
 
 		#region Physics
-		public static bool DoesIntersect(Particle left, Particle right)
-		{
-			Vector2 delta = right.Pos - left.Pos;
-			float radSum = left.Rad + right.Rad;
-			if (delta.LengthSquared() < radSum * radSum)
-				return true;
 
-			return false;
+		private static bool DoesIntersect(Particle left, Particle right)
+		{
+			float radSum = left.Rad + right.Rad;
+			return Vector2.DistanceSquared(left.Pos, right.Pos) < radSum * radSum;	// DistanceSquared takes advantage of an intrinsic for a big speedup
 		}
 
-		public static void Collide(Particle left, Particle right)
+		private static void Collide(Particle left, Particle right)
 		{
 			// Assume only called when DoesIntersect returns true
 			Vector2 delta = right.Pos - left.Pos;
 			// Considering vectorising below, but that induces overhead with struct creation, however small it may be. 
 			// But all those float allocations... would get allocated behind the scenes anyway. Fuck it
 			// But Vector2s can take advantage of SIMD...
-			// Run the profiler
 
+			// Would like to optimise this one more...
+			// Surely SOMETHING I can do with SIMD
+			//
+			//
 
 			float phi;
 			if (delta.X == 0)
@@ -175,7 +180,7 @@ namespace ParticlePort
 			right.Vel = new Vector2(v2x, v2y);
 		}
 
-		public static void CollisionWithVectors(Particle left, Particle right)
+		private static void CollisionWithVectors(Particle left, Particle right)
 		{
 			// Copy-paste and vectorise above, then profile
 			throw new NotImplementedException();
@@ -184,7 +189,7 @@ namespace ParticlePort
 		/// <summary>
 		/// Returns the scalar magnitude of the graviational force between two particles. Multiply by the unit vector of the vector distance between the two for the vector force.
 		/// </summary>
-		public static float GravForceScalar(Particle left, Particle right)
+		private static float GravForceScalar(Particle left, Particle right)
 		{
 			return 6.6743015E-11f * left.Mass * right.Mass / (right.Pos - left.Pos).LengthSquared();
 		}
@@ -192,7 +197,7 @@ namespace ParticlePort
 		/// <summary>
 		/// Returns the vector force exerted by the right particle on the left particle. Mutliply by -1 for vice versa.
 		/// </summary>
-		public static Vector2 GravForceVector(Particle left, Particle right)
+		private static Vector2 GravForceVector(Particle left, Particle right)
 		{
 			Vector2 separation = right.Pos - left.Pos;
 			float sepSquared = separation.LengthSquared();  // Avoiding unecessary sqrt
