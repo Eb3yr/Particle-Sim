@@ -9,7 +9,7 @@ namespace ParticlePort
 	{
 		// Ordinarily these would be properties, but switching to fields DOUBLED fps
 		public int Num;    // What purpose does this serve? Atomic number?
-		public float Mass;
+		public float Mass;	// Linked to radius in Lucas' code
 		public float Charge;
 		public float Rad;
 		public float HalfLife;
@@ -34,7 +34,6 @@ namespace ParticlePort
 			return -1;
 
 		};
-		// Could have an alternate comparer that compares x and y distance as a sum, and tie that in to a slightly different optimisation for when to break. IDK how well that would work though.
 
 		public Particle(int Num, float Mass, float Charge, float Radius, float HalfLife, Vector2 Position, Vector2 Velocity, Color Color)
 		{
@@ -86,9 +85,8 @@ namespace ParticlePort
 				}
 
 				// Bounce off window walls
-				// A bit off. Is this including the top bar?
 
-				// IMPORTANT: my coordinates draw from top-left, not from centre!
+				// Coordinates correspond to top-left, not centre!
 				if (left.Pos.X < left.Rad)
 				{
 					if (left.Vel.X < 0)

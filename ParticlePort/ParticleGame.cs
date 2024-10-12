@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace ParticlePort;
 
@@ -23,7 +24,7 @@ public class ParticleGame : Game
 	{
 		_graphics = new GraphicsDeviceManager(this);
 		_graphics.SynchronizeWithVerticalRetrace = false;   //. Vsync disabled
-		IsFixedTimeStep = false;    // Disabled fps cap. Can toggle for forced slowdown and use a slider for the target.
+		IsFixedTimeStep = false;    // Disabled fps cap. Can toggle with C for forced slowdown and use a slider for the target.
 		IsFixedTimeStep = true;
 		Content.RootDirectory = "Content";
 		IsMouseVisible = true;
@@ -57,14 +58,28 @@ public class ParticleGame : Game
 	}
 
 	DateTime cLastPressed = DateTime.Now;
+	DateTime bLastPressed = DateTime.Now;
+	DateTime vLastPressed = DateTime.Now;
 	protected override void Update(GameTime gameTime)
 	{
 		if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
 			Exit();
-		if (Keyboard.GetState().IsKeyDown(Keys.C) && DateTime.Now.Subtract(cLastPressed).TotalMilliseconds > 250)
+
+		// This sucks. Make a class to wrap keypresses (down, then up). Triggers subscribed events when that's the case. 
+		if (Keyboard.GetState().IsKeyDown(Keys.C) && DateTime.Now.Subtract(cLastPressed).TotalMilliseconds > 125)
 		{
 			IsFixedTimeStep ^= true;
 			cLastPressed = DateTime.Now;
+		}
+		if (Keyboard.GetState().IsKeyDown(Keys.B) && DateTime.Now.Subtract(bLastPressed).TotalMilliseconds > 125)
+		{
+			Window.IsBorderless ^= true;
+			bLastPressed = DateTime.Now;
+		}
+		if (Keyboard.GetState().IsKeyDown(Keys.V) && DateTime.Now.Subtract(vLastPressed).TotalMilliseconds > 125)
+		{
+			_graphics.ToggleFullScreen();
+			vLastPressed = DateTime.Now;
 		}
 		// Consider special form resize case where it's fullscreened, offset the particles by the opposite of the distance the form corner travels so that they stay in place. 
 
